@@ -88,9 +88,6 @@ jobs:
           chmod +x ./scripts/deploy.sh
           ./scripts/deploy.sh
         env:
-          AWS_ACCESS_KEY_ID: AKIAUU344LCHJHKMPAU2
-          AWS_SECRET_ACCESS_KEY: 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
-          AWS_ACCOUNT_ID: 319700097166
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
