@@ -1,0 +1,55 @@
+# Nakama Configuration
+name: tictactoe-server
+runtime: {
+  environment: "typescript",
+  http_port: 7350,
+  grpc_port: 7349,
+  metrics_port: 9100
+}
+
+storage:
+  data_dir: ./data
+
+database:
+  primary_conn:
+    connections: 8
+    max_idle_conns: 0
+    conn_max_lifetime: 0
+    log_queries: true
+
+session:
+  encryption_key: "defaultencryptionkey1234567890ab"
+  token_expiry_sec: 604800
+  refresh_token_expiry_sec: 2592000
+  single_socket_per_user_id: false
+
+social:
+  autocreate_account: true
+  apple:
+    bundle_id: ""
+  steam:
+    app_id: 0
+    concurrency: 10
+  google:
+    client_ids: []
+
+leaderboard:
+  blacklist: []
+
+match:
+  max_empty_state_age_sec: 300
+  presence_log_percentage: 10
+
+metrics:
+  prometheus_port: 9100
+  reporting_freq_sec: 0
+  namespace: nakama
+  num_stats_buckets: 10
+
+logger:
+  level: info
+  stdout: true
+  format: json
+
+delight:
+  script_runtime: TS

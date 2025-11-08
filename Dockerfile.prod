@@ -1,0 +1,36 @@
+# Multi-stage build for production
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Create app user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+# Copy from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/next.config.mjs ./
+
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
+
+# Switch to non-root user
+USER nextjs
+
+EXPOSE 3000
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_NAKAMA_URL=http://nakama:7350
+
+CMD ["npm", "start"]

@@ -1,0 +1,120 @@
+version: '3.8'
+
+# Setup service to auto-generate environment variables
+x-setup: &setup-service
+  image: alpine:latest
+  volumes:
+    - .:/app
+  working_dir: /app
+  entrypoint: ["/bin/sh", "-c"]
+
+services:
+  # Environment auto-setup service (runs once before other services)
+  env-setup:
+    <<: *setup-service
+    container_name: env_setup
+    command: 
+      - |
+        chmod +x scripts/auto-env.sh && \
+        ./scripts/auto-env.sh && \
+        echo "✅ Auto-setup complete. Starting services..." && \
+        sleep 2
+    depends_on: []
+
+  # PostgreSQL Database for Nakama
+  postgres:
+    image: postgres:15-alpine
+    container_name: tictactoe_db
+    depends_on:
+      env-setup:
+        condition: service_completed_successfully
+    env_file: .env.auto
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tictactoe-network
+    restart: unless-stopped
+
+  # Nakama Backend
+  nakama:
+    image: heroiclabs/nakama:latest
+    container_name: tictactoe_nakama
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.auto
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NAKAMA_DATADIR: /nakama/data
+      NAKAMA_SESSION_ENCRYPTION_KEY: ${NAKAMA_ENCRYPTION_KEY}
+      NAKAMA_LOGGER_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "7350:7350"
+      - "7349:7349"
+      - "9100:9100"
+    volumes:
+      - nakama_data:/nakama/data
+      - ./nakama/modules:/nakama/modules
+      - ./nakama/nakama.yml:/nakama/nakama.yml:ro
+    command: nakama --config /nakama/nakama.yml
+    networks:
+      - tictactoe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7350"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tictactoe_frontend
+    depends_on:
+      nakama:
+        condition: service_healthy
+    env_file: .env.auto
+    environment:
+      NEXT_PUBLIC_NAKAMA_URL: ${NEXT_PUBLIC_NAKAMA_URL}
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - tictactoe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  nakama_data:
+    driver: local
+
+networks:
+  tictactoe-network:
+    driver: bridge

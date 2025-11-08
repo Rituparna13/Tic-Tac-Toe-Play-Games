@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Nakama (Production)
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nakama}
+      POSTGRES_USER: ${DB_USER:-nakama}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nakama}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tictactoe-prod
+
+  # Nakama Backend (Production)
+  nakama:
+    image: heroiclabs/nakama:latest
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-nakama}
+      DB_USER: ${DB_USER:-nakama}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NAKAMA_DATADIR: /nakama/data
+      NAKAMA_SESSION_ENCRYPTION_KEY: ${NAKAMA_ENCRYPTION_KEY}
+      NAKAMA_LOGGER_LEVEL: info
+    ports:
+      - "7350:7350"
+      - "7349:7349"
+    volumes:
+      - nakama_data_prod:/nakama/data
+      - ./nakama/modules:/nakama/modules
+      - ./nakama/nakama.yml:/nakama/nakama.yml:ro
+    command: nakama --config /nakama/nakama.yml
+    networks:
+      - tictactoe-prod
+
+  # Frontend (Production with Nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - nakama
+    environment:
+      NEXT_PUBLIC_NAKAMA_URL: ${NEXT_PUBLIC_NAKAMA_URL:-http://api.example.com:7350}
+      NODE_ENV: production
+    ports:
+      - "80:3000"
+    networks:
+      - tictactoe-prod
+
+volumes:
+  postgres_data_prod:
+  nakama_data_prod:
+
+networks:
+  tictactoe-prod:
+    name: tictactoe-prod
