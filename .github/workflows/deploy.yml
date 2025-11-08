@@ -33,7 +33,7 @@ jobs:
       
       - name: Build Docker image
         run: docker build -t tictactoe:test .
-  
+
   deploy-docker:
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -74,7 +74,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-  
+
   deploy-production:
     needs: deploy-docker
     runs-on: ubuntu-latest
@@ -83,13 +83,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Deploy to cloud provider
+      - name: Deploy to AWS
         run: |
           chmod +x ./scripts/deploy.sh
           ./scripts/deploy.sh
         env:
-          CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
-          AZURE_REGISTRY: ${{ secrets.AZURE_REGISTRY }}
-          DO_REGISTRY: ${{ secrets.DO_REGISTRY }}
+          AWS_ACCESS_KEY_ID: AKIAUU344LCHJHKMPAU2
+          AWS_SECRET_ACCESS_KEY: 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
+          AWS_ACCOUNT_ID: 319700097166
